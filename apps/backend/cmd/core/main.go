@@ -41,9 +41,12 @@ func initialiseAuxiliaryConnections() {
 }
 
 func defineAppRoutes() *http.ServeMux {
+	auth := xhttp.BearerTokenAuthMiddlewareFactory{DBExecutor: db}
 	var s *http.ServeMux = http.NewServeMux()
 	s.Handle("/health", xhttp.Get(Health()))
 	s.Handle("/register", xhttp.Post(Register()))
+	s.Handle("/login", xhttp.Post(Login()))
+	s.Handle("/bark", auth.New(xhttp.Post(Bark())))
 
 	return s
 }
