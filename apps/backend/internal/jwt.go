@@ -61,8 +61,7 @@ func GenerateJWT(userId string) (JWT, error) {
 	}
 
 	var creationDate time.Time = time.Now()
-	// TODO: Push this back to an hour after creation after testing
-	var expirationDate time.Time = creationDate.Add(time.Minute)
+	var expirationDate time.Time = creationDate.Add(time.Hour)
 	claims := jwt.RegisteredClaims{
 		Subject:   userId,
 		ExpiresAt: jwt.NewNumericDate(expirationDate),

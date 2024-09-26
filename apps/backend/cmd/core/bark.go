@@ -63,7 +63,7 @@ func Bark() http.Handler {
 
 		timer.WithTimer("writing bark to the database", func() {
 			err = xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
-				return xdb.Bark(e, b.Content, userId)
+				return xdb.WriteBark(e, b.Content, userId)
 			})
 		})
 
