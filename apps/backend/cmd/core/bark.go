@@ -29,33 +29,16 @@ func Bark() http.Handler {
 			return
 		}
 
-		var jwtString string
+		var dogId string
 
-		timer.WithTimer("getting the JWT from the Auth header", func() {
-			jwtString, err = xhttp.GetAuthBearerToken(r)
+		timer.WithTimer("getting dog ID from Auth header JWT", func() {
+			dogId, err = xhttp.GetDogIdFromAuth(db, r)
 		})
 
 		if err != nil {
 			http.Error(
 				w,
-				"Could not get JWT from Auth header",
-				http.StatusInternalServerError,
-			)
-			return
-		}
-
-		var userId string
-
-		timer.WithTimer("getting the user ID from the JWT", func() {
-			var s xdb.Session
-			s, err = xdb.GetSessionByToken(db, jwtString)
-			userId = s.DogId
-		})
-
-		if err != nil {
-			http.Error(
-				w,
-				"Could not extract user ID from JWT",
+				"Could not extract dog ID from JWT",
 				http.StatusInternalServerError,
 			)
 			return
@@ -63,7 +46,7 @@ func Bark() http.Handler {
 
 		timer.WithTimer("writing bark to the database", func() {
 			err = xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
-				return xdb.WriteBark(e, b.Content, userId)
+				return xdb.WriteBark(e, b.Content, dogId)
 			})
 		})
 

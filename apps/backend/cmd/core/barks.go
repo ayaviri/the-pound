@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	xdb "the-pound/internal/db"
+	xhttp "the-pound/internal/http"
 
 	"github.com/ayaviri/goutils/timer"
 )
@@ -37,8 +38,47 @@ func Barks() http.Handler {
 			return
 		}
 
-		// 2) Error if requested user's tweets cannot be viewed
-		// by the user that made the request
+		var requestingDogId string
+
+		timer.WithTimer("getting dog's ID from Auth header JWT", func() {
+			requestingDogId, err = xhttp.GetDogIdFromAuth(db, r)
+		})
+
+		if err != nil {
+			http.Error(
+				w,
+				"Could not requester's ID from Auth header JWT",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		var isAllowedToViewBarks bool
+
+		timer.WithTimer(
+			"checking whether requested dog's barks can be viewed by bearer",
+			func() {
+				isAllowedToViewBarks, err = xdb.CanBarksBeViewedByDog(
+					db,
+					requestingDogId,
+					p.DogId,
+				)
+			},
+		)
+
+		if err != nil {
+			http.Error(
+				w,
+				"Could not determine if requested dog's barks can be viewed",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		if !isAllowedToViewBarks {
+			http.Error(w, "Not allowed to view dog's barks", http.StatusForbidden)
+			return
+		}
 
 		var barks []xdb.Bark
 

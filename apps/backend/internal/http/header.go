@@ -1,13 +1,33 @@
 package http
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"strings"
+	xdb "the-pound/internal/db"
 )
 
-func GetAuthBearerToken(request *http.Request) (string, error) {
-	var authHeader string = request.Header.Get("Authorization")
+func GetDogIdFromAuth(db *sql.DB, r *http.Request) (string, error) {
+	var jwt string
+	jwt, err := GetAuthBearerToken(r)
+
+	if err != nil {
+		return "", err
+	}
+
+	var s xdb.Session
+	s, err = xdb.GetSessionByToken(db, jwt)
+
+	if err != nil {
+		return "", err
+	}
+
+	return s.DogId, nil
+}
+
+func GetAuthBearerToken(r *http.Request) (string, error) {
+	var authHeader string = r.Header.Get("Authorization")
 
 	if authHeader == "" {
 		return "", errors.New("Authorization header required")

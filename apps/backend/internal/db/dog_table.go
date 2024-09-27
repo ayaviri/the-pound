@@ -8,8 +8,8 @@ import (
 )
 
 func IsUsernameInUse(e DBExecutor, username string) (bool, error) {
-	statement := "select count(*) from dog where username = $1"
-	dogCount, err := QueryCount(e, statement, username)
+	query := "select count(*) from dog where username = $1"
+	dogCount, err := QueryCount(e, query, username)
 
 	return dogCount == 1, err
 }
@@ -50,4 +50,20 @@ func GetUserId(e DBExecutor, username string) (string, error) {
 	err = row.Scan(&userId)
 
 	return userId, err
+}
+
+func UpdateProfileVisibility(e DBExecutor, isProtected bool, dogId string) error {
+	statement := `update dog set is_public = $1 where id = $2`
+	_, err = e.Exec(statement, !isProtected, dogId)
+
+	return err
+}
+
+func IsDogPublic(e DBExecutor, dogId string) (bool, error) {
+	query := `select is_public from dog where id = $1`
+	var row *sql.Row = e.QueryRow(query, dogId)
+	var isPublic bool
+	err = row.Scan(&isPublic)
+
+	return isPublic, err
 }

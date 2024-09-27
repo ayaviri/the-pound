@@ -48,6 +48,8 @@ func defineAppRoutes() *http.ServeMux {
 	s.Handle("/login", xhttp.Post(Login()))
 	s.Handle("/bark", auth.New(xhttp.Post(Bark())))
 	s.Handle("/barks", auth.New(xhttp.Get(Barks())))
+	s.Handle("/follow", auth.New(xhttp.Post(Follow())))
+	s.Handle("/protect", auth.New(xhttp.Post(Protect())))
 
 	return s
 }
