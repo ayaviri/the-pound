@@ -86,8 +86,7 @@ func IsValidJWT(e DBExecutor, tokenString string) (JWTValidationResult, error) {
 
 func IsJWTExpired(e DBExecutor, tokenString string) (bool, error) {
 	query := `select expires_at from session where token = $1`
-	var row *sql.Row
-	row = e.QueryRow(query, tokenString)
+	var row *sql.Row = e.QueryRow(query, tokenString)
 	var expirationDate time.Time
 	err = row.Scan(&expirationDate)
 
@@ -101,8 +100,7 @@ func IsJWTExpired(e DBExecutor, tokenString string) (bool, error) {
 func GetSessionByToken(e DBExecutor, tokenString string) (Session, error) {
 	query := `select id, dog_id, token, expires_at, created_at from session 
 where token = $1`
-	var row *sql.Row
-	row = e.QueryRow(query, tokenString)
+	var row *sql.Row = e.QueryRow(query, tokenString)
 	var s Session
 	err = row.Scan(&s.Id, &s.DogId, &s.Token, &s.ExpirationDate, &s.CreationDate)
 
@@ -118,4 +116,14 @@ func UpdateSessionToken(e DBExecutor, oldTokenString, newTokenString string) err
 	_, err = e.Exec(statement, newTokenString, oldTokenString)
 
 	return err
+}
+
+func GetDogByToken(e DBExecutor, tokenString string) (Dog, error) {
+	query := `select dog.id, dog.username, is_public from dog join 
+session on dog.id = session.dog_id where session.token = $1`
+	var row *sql.Row = e.QueryRow(query, tokenString)
+	var d Dog
+	err = row.Scan(&d.Id, &d.Username, &d.IsPublic)
+
+	return d, err
 }

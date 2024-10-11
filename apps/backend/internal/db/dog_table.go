@@ -7,6 +7,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type Dog struct {
+	Id       string
+	Username string
+	IsPublic bool
+}
+
 func IsUsernameInUse(e DBExecutor, username string) (bool, error) {
 	query := "select count(*) from dog where username = $1"
 	dogCount, err := QueryCount(e, query, username)
@@ -42,10 +48,9 @@ func DoCredentialsMatch(e DBExecutor, username string, password string) (bool, e
 	return c == 1, err
 }
 
-func GetUserId(e DBExecutor, username string) (string, error) {
+func GetIdFromUsername(e DBExecutor, username string) (string, error) {
 	query := "select id from dog where username = $1"
-	var row *sql.Row
-	row = e.QueryRow(query, username)
+	var row *sql.Row = e.QueryRow(query, username)
 	var userId string
 	err = row.Scan(&userId)
 
@@ -66,4 +71,13 @@ func IsDogPublic(e DBExecutor, dogId string) (bool, error) {
 	err = row.Scan(&isPublic)
 
 	return isPublic, err
+}
+
+func GetDogFromId(e DBExecutor, dogId string) (Dog, error) {
+	query := `select id, username, is_public from dog where id = $1`
+	var row *sql.Row = e.QueryRow(query, dogId)
+	var d Dog
+	err = row.Scan(&d.Id, &d.Username, &d.IsPublic)
+
+	return d, err
 }

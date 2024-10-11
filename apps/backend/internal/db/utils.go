@@ -10,11 +10,17 @@ type DBExecutor interface {
 	QueryRow(query string, args ...any) *sql.Row
 }
 
+func QueryExists(e DBExecutor, query string, args ...any) (bool, error) {
+	count, err := QueryCount(e, query, args...)
+
+	return count > 0, err
+}
+
 // Expects a raw SQL count query, writing the first column of the first row
 // returned into a string, converting it into an integer, and returning it.
 // Returns any errors encountered along the way as well
-func QueryCount(e DBExecutor, query string, args ...any) (int, error) {
-	var count int
+func QueryCount(e DBExecutor, query string, args ...any) (uint, error) {
+	var count uint
 	var row *sql.Row = e.QueryRow(query, args...)
 	err = row.Scan(&count)
 

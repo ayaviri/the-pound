@@ -26,7 +26,7 @@ func Barks() http.Handler {
 		var p BarksQueryStringParameters
 
 		timer.WithTimer("getting query string parameters", func() {
-			p, err = parseQueryStringParameters(r)
+			p, err = parseBarksQueryStringParameters(r)
 		})
 
 		if err != nil {
@@ -118,7 +118,9 @@ func Barks() http.Handler {
 // |_| |_|_____|_____|_|   |_____|_| \_\____/
 //
 
-func parseQueryStringParameters(r *http.Request) (BarksQueryStringParameters, error) {
+func parseBarksQueryStringParameters(
+	r *http.Request,
+) (BarksQueryStringParameters, error) {
 	var p BarksQueryStringParameters
 	var dogIds []string = r.URL.Query()["dog_id"]
 

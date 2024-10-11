@@ -63,7 +63,7 @@ func Login() http.Handler {
 		var userId string
 
 		timer.WithTimer("getting user ID", func() {
-			userId, err = xdb.GetUserId(db, b.Username)
+			userId, err = xdb.GetIdFromUsername(db, b.Username)
 		})
 
 		if err != nil {

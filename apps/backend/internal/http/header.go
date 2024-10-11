@@ -8,6 +8,26 @@ import (
 	xdb "the-pound/internal/db"
 )
 
+// Requires a JOIN between the session and dog tables, so prefer
+// GetDogFromAuth unless more information on the dog is needed
+func GetDogFromAuth(db *sql.DB, r *http.Request) (xdb.Dog, error) {
+	var d xdb.Dog
+	var jwt string
+	jwt, err := GetAuthBearerToken(r)
+
+	if err != nil {
+		return d, err
+	}
+
+	d, err = xdb.GetDogByToken(db, jwt)
+
+	if err != nil {
+		return d, err
+	}
+
+	return d, nil
+}
+
 func GetDogIdFromAuth(db *sql.DB, r *http.Request) (string, error) {
 	var jwt string
 	jwt, err := GetAuthBearerToken(r)
