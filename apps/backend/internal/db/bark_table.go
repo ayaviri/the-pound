@@ -11,8 +11,11 @@ import (
 type Bark struct {
 	Id           string    `json:"id"`
 	DogId        string    `json:"dog_id"`
+	DogUsername  string    `json:"dog_username"`
 	Bark         string    `json:"bark"`
 	CreationDate time.Time `json:"created_at"`
+	// TODO: This field is dependent on the dog that requests this bark
+	RebarkDate time.Time `json:"rebark_date"`
 	// TODO: This field doesn't make much sense outside of the context of a user's timeline
 	// or their tweets
 	IsRebark    bool `json:"is_rebark"`
@@ -63,10 +66,15 @@ func DecrementTreatCount(e DBExecutor, barkId string) error {
 	return err
 }
 
-func WriteBark(e DBExecutor, bark string, dogId string) (string, error) {
+func WriteBark(
+	e DBExecutor,
+	bark string,
+	dogId string,
+	dogUsername string,
+) (string, error) {
 	id := uuid.NewString()
-	statement := `insert into bark (id, dog_id, bark) values($1, $2, $3)`
-	_, err = e.Exec(statement, id, dogId, bark)
+	statement := `insert into bark (id, dog_id, bark, dog_username) values($1, $2, $3, $4)`
+	_, err = e.Exec(statement, id, dogId, bark, dogUsername)
 
 	return id, err
 }
@@ -103,6 +111,8 @@ from bark where id = $1`
 	return b, nil
 }
 
+// Gets the barks from the dog with the given ID and all dogs it follows,
+// constrained by the given pagination parameters
 func GetDogTimeline(
 	e DBExecutor,
 	dogId string,
@@ -123,7 +133,7 @@ func GetDogTimeline(
 		return []Bark{}, err
 	}
 
-	return constructBarksFromRows(rows)
+	return ConstructBarksFromRows(rows)
 }
 
 func GetDogBarks(e DBExecutor, dogId string, count uint, offset uint) ([]Bark, error) {
@@ -135,11 +145,11 @@ func GetDogBarks(e DBExecutor, dogId string, count uint, offset uint) ([]Bark, e
 		return []Bark{}, err
 	}
 
-	return constructBarksFromRows(rows)
+	return ConstructBarksFromRows(rows)
 }
 
-func constructBarksFromRows(r *sql.Rows) ([]Bark, error) {
-	var barks []Bark
+func ConstructBarksFromRows(r *sql.Rows) ([]Bark, error) {
+	barks := make([]Bark, 0)
 
 	for r.Next() {
 		b, err := constructBarkFromRow(r)
@@ -162,8 +172,10 @@ func constructBarkFromRow(r *sql.Rows) (Bark, error) {
 	err = r.Scan(
 		&b.Id,
 		&b.DogId,
+		&b.DogUsername,
 		&b.Bark,
 		&b.CreationDate,
+		&b.RebarkDate,
 		&b.TreatCount,
 		&b.RebarkCount,
 		&b.PawCount,
@@ -197,49 +209,61 @@ func getDogBarksQuery() string {
 	query := `
     with barks as (
         select 
-        id, dog_id, bark, created_at, 
+        id, dog_id, dog_username, bark, created_at, created_at as rebarked_at,
         treat_count, rebark_count, paw_count, 'bark' as type 
         from bark where dog_id = $1 
         order by created_at desc limit $2::integer + $3::integer
     ),
     rebarks as (
         select 
-        b.id, b.dog_id, b.bark, b.created_at, 
+        b.id, b.dog_id, b.dog_username, b.bark, b.created_at, r.created_at,
         b.treat_count, b.rebark_count, b.paw_count, 'rebark' as type
         from rebark as r join bark as b
         on r.bark_id = b.id where r.dog_id = $1
-        order by created_at desc limit $2::integer + $3::integer
+        order by r.created_at desc limit $2::integer + $3::integer
     ),
     combined as (
-        select * from barks union all select * from rebarks
+        select * from barks union select * from rebarks
+    ),
+    distinct_combined as (
+        select distinct on (id) * from combined order by id, rebarked_at desc
     )
-    select * from combined order by created_at desc limit $2 offset $3
+    select * from distinct_combined
+    order by rebarked_at desc limit $2 offset $3
     `
 
 	return query
 }
 
+// TODO: The union all in these two queries is causing barks to appear twice when
+// they've been rebarked and recently posted. Figure out why the union all was
+// here in the first place
+
 func getDogTimelineQuery() string {
 	query := `
     with barks as (
         select 
-        id, dog_id, bark, created_at, 
+        id, dog_id, dog_username, bark, created_at, created_at as rebarked_at,
         treat_count, rebark_count, paw_count, 'bark' as type 
         from bark where dog_id = any($1) 
-        order by created_at desc limit $2 + $3
+        order by created_at desc limit $2::integer + $3::integer
     ),
     rebarks as (
         select 
-        b.id, b.dog_id, b.bark, b.created_at, 
+        b.id, b.dog_id, b.dog_username, b.bark, b.created_at, r.created_at,
         b.treat_count, b.rebark_count, b.paw_count, 'rebark' as type
         from rebark as r join bark as b
         on r.bark_id = b.id where r.dog_id = any($1)
-        order by created_at desc limit $2 + $3
+        order by r.created_at desc limit $2::integer + $3::integer
     ),
     combined as (
         select * from barks union all select * from rebarks
+    ),
+    distinct_combined as (
+        select distinct on (id) * from combined order by id, rebarked_at desc
     )
-    select * from combined order by created_at desc limit $2 offset $3
+    select * from distinct_combined
+    order by rebarked_at desc limit $2 offset $3
     `
 
 	return query

@@ -1,0 +1,8 @@
+github.com/ayaviri/goutils v0.0.0-20240829200232-4be7cdd824f9 h1:HJaJMTRFNhGzYc41R2gqOdzNnD/Ftk9IuNGyXror7ug=
+github.com/ayaviri/goutils v0.0.0-20240829200232-4be7cdd824f9/go.mod h1:pKolit5HmYW4/270hOrTGElBQYBKxnSpEUFowJ9zn7k=
+github.com/ayaviri/goutils v0.0.0-20241025230425-37f9751cf150 h1:RKrJYDOK3rhOmj7gN7AFEUd/SeDOq5j7NQkqf4Ypp7E=
+github.com/ayaviri/goutils v0.0.0-20241025230425-37f9751cf150/go.mod h1:pKolit5HmYW4/270hOrTGElBQYBKxnSpEUFowJ9zn7k=
+github.com/felixge/httpsnoop v1.0.3 h1:s/nj+GCswXYzN5v2DpNMuMQYe+0DDwt5WVCU6CWBdXk=
+github.com/felixge/httpsnoop v1.0.3/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
+github.com/gorilla/handlers v1.5.2 h1:cLTUSsNkgcwhgRqvCNmdbRWG0A3N4F+M2nWKdScwyEE=
+github.com/gorilla/handlers v1.5.2/go.mod h1:dX+xVpaxdSw+q0Qek8SSsl3dfMk3jNddUkMzo0GtH0w=

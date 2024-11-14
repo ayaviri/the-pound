@@ -10,6 +10,8 @@ import (
 
 type ApproveRequestBody struct {
 	DogId string `json:"dog_id"`
+	// NOTE: The need for a notification ID is a clear design flaw
+	NotificationId string `json:"notification_id"`
 }
 
 func Approve() http.Handler {
@@ -50,7 +52,25 @@ func Approve() http.Handler {
 		timer.WithTimer("approving follow request in database", func() {
 			err = xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
 				fromDogId := b.DogId
-				return xdb.ApproveFollowRequest(e, fromDogId, toDogId)
+				err = xdb.ApproveFollowRequest(e, fromDogId, toDogId)
+
+				if err != nil {
+					return err
+				}
+
+				err = xdb.SetNotificationToRead(e, b.NotificationId)
+
+				if err != nil {
+					return err
+				}
+
+				err = xdb.IncrementFollowingCount(e, fromDogId)
+
+				if err != nil {
+					return err
+				}
+
+				return xdb.IncrementFollowerCount(e, toDogId)
 			})
 		})
 

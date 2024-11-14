@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
 	xdb "the-pound/internal/db"
 	xhttp "the-pound/internal/http"
 
@@ -88,5 +90,33 @@ func Timeline() http.Handler {
 func parseTimelineQueryStringParameters(
 	r *http.Request,
 ) (TimelineQueryStringParameters, error) {
-	return TimelineQueryStringParameters{}, nil
+	var p TimelineQueryStringParameters
+	var counts []string = r.URL.Query()["count"]
+
+	if counts == nil || counts[0] == "" {
+		return p, errors.New("Count has not been set")
+	}
+
+	count64, err := strconv.ParseUint(counts[0], 10, 64)
+
+	if err != nil {
+		return p, err
+	}
+
+	p.Count = uint(count64)
+	var offsets []string = r.URL.Query()["offset"]
+
+	if offsets == nil || offsets[0] == "" {
+		return p, errors.New("Offset has not been set")
+	}
+
+	offset64, err := strconv.ParseUint(offsets[0], 10, 64)
+
+	if err != nil {
+		return p, err
+	}
+
+	p.Offset = uint(offset64)
+
+	return p, nil
 }

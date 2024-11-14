@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
 	xdb "the-pound/internal/db"
 	xhttp "the-pound/internal/http"
@@ -12,6 +13,8 @@ type TreatRequestBody struct {
 	BarkId string `json:"bark_id"`
 }
 
+// Adds a treat if the dog hasn't given one to the bark.
+// Deletes the treat otherwise
 func Treat() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var dogId string
@@ -26,6 +29,7 @@ func Treat() http.Handler {
 				"Could not get dog ID from Auth header JWT",
 				http.StatusInternalServerError,
 			)
+			return
 		}
 
 		var b TreatRequestBody
@@ -40,112 +44,59 @@ func Treat() http.Handler {
 				"Could not get bark ID from request body",
 				http.StatusBadRequest,
 			)
+			return
 		}
 
-		var treatGiven bool
-
-		timer.WithTimer("checking if treat has already been given", func() {
-			treatGiven, err = xdb.HasDogGivenBarkTreat(db, b.BarkId, dogId)
+		timer.WithTimer("toggling treat state for dog/bark pair in database", func() {
+			err = toggleTreatStateInDB(db, b.BarkId, dogId)
 		})
 
 		if err != nil {
 			http.Error(
 				w,
-				"Could not check if treat had already been given by dog",
-				http.StatusInternalServerError,
+				"Could not toggle treat's presence in database",
+				http.StatusBadRequest,
 			)
-			return
-		}
-
-		switch r.Method {
-		case http.MethodPost:
-			PostTreat(w, r, dogId, b.BarkId, treatGiven)
-		case http.MethodDelete:
-			DeleteTreat(w, r, dogId, b.BarkId, treatGiven)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
 }
 
-//  ____   ___  ____ _____
-// |  _ \ / _ \/ ___|_   _|
-// | |_) | | | \___ \ | |
-// |  __/| |_| |___) || |
-// |_|    \___/|____/ |_|
-//
+// In an atomic transaction
+// 1) Checks whether a treat exists for the given dog/bark pair
+// 2) Writes/removes treat accordingly
+// 3) Increments/decrements bark's treat count accordingly
+func toggleTreatStateInDB(db *sql.DB, barkId string, dogId string) error {
+	return xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
+		treatGiven, err := xdb.HasDogGivenBarkTreat(e, barkId, dogId)
 
-func PostTreat(
-	w http.ResponseWriter,
-	r *http.Request,
-	dogId string,
-	barkId string,
-	treatGiven bool,
-) {
-	if treatGiven {
-		w.WriteHeader(200)
-		return
-	}
+		if err != nil {
+			return err
+		}
 
-	// TODO: Check if this dog can view that dog's barks ?
-	timer.WithTimer("writing treat to database", func() {
-		err = xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
-			err = xdb.WriteTreat(e, barkId, dogId)
-
-			if err != nil {
-				return err
-			}
-
-			return xdb.IncrementTreatCount(e, barkId)
-		})
+		if treatGiven {
+			return removeTreatFromDB(e, barkId, dogId)
+		} else {
+			return writeTreatToDB(e, barkId, dogId)
+		}
 	})
-
-	if err != nil {
-		http.Error(
-			w,
-			"Could not write treat to database",
-			http.StatusBadRequest,
-		)
-	}
 }
 
-//  ____  _____ _     _____ _____ _____
-// |  _ \| ____| |   | ____|_   _| ____|
-// | | | |  _| | |   |  _|   | | |  _|
-// | |_| | |___| |___| |___  | | | |___
-// |____/|_____|_____|_____| |_| |_____|
-//
-
-func DeleteTreat(
-	w http.ResponseWriter,
-	r *http.Request,
-	dogId string,
-	barkId string,
-	treatGiven bool,
-) {
-	if !treatGiven {
-		w.WriteHeader(200)
-		return
-	}
-
-	// TODO: Check if this dog can view that dog's barks ?
-	timer.WithTimer("removing treat in database", func() {
-		err = xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
-			err = xdb.RemoveTreat(e, barkId, dogId)
-
-			if err != nil {
-				return err
-			}
-
-			return xdb.DecrementTreatCount(e, barkId)
-		})
-	})
+func writeTreatToDB(e xdb.DBExecutor, barkId string, dogId string) error {
+	err = xdb.WriteTreat(e, barkId, dogId)
 
 	if err != nil {
-		http.Error(
-			w,
-			"Could not remove treat in database",
-			http.StatusBadRequest,
-		)
+		return err
 	}
+
+	return xdb.IncrementTreatCount(e, barkId)
+}
+
+func removeTreatFromDB(e xdb.DBExecutor, barkId string, dogId string) error {
+	err = xdb.RemoveTreat(e, barkId, dogId)
+
+	if err != nil {
+		return err
+	}
+
+	return xdb.DecrementTreatCount(e, barkId)
 }

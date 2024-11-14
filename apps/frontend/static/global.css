@@ -1,0 +1,185 @@
+body {
+    /* color: #2b1704; */
+    font-family: Arial;
+    background-color: tan;
+    margin: 0;
+}
+
+#vertical_full_screen {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#horizontal_full_screen {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#entrance {
+    max-height: 80vh;
+    width: 75%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: stretch;
+}
+
+#fogo {
+    width: 50%;
+    object-fit: contain;
+}
+
+#forms {
+    flex: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#forms h1, h2 {
+    margin: 10px;
+}
+
+#auth {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.form_label {
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+.form_input {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+.bark, .notification {
+    width: 600px;
+    margin-top: 12px;
+    margin-bottom: 12px;
+    cursor: pointer;
+}
+
+.bark {
+    display: flex;
+    flex-direction: column;
+    justify-content: left;
+}
+
+.notification {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.notification_content {
+    display: flex;
+    flex-direction: row;
+    justify-content: left;
+}
+
+.notification_action {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center
+}
+
+.bark_header {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.bark_body {
+    margin-top: 6px;
+    margin-bottom: 6px;
+}
+
+.bark_footer {
+    display: flex;
+    flex-direction: row;
+}
+
+.bark_interaction {
+    display: flex;
+    flex-direction: row;
+}
+
+.bark_interaction_count {
+    width: 40px;
+}
+
+#bark_button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 80px;
+    height: 80px;
+}
+
+#bark_button > img {
+   width: 100%;
+   height: 100%;
+}
+
+.bark_modal {
+    z-index: 1000;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#bark_modal_content {
+    display: flex;
+    border-radius: 5px;
+    background-color: #DEB887;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#bark_modal_content > textarea, button {
+    margin-bottom: 8px;
+}
+
+.hidden {
+    display: none;
+}
+
+#search_result {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    cursor: pointer;
+}
+
+#follow {
+    margin-bottom: 20px;
+}
+
+.notification_icon, .notification_action_icon {
+    width: 60px;
+    height: 60px;
+    margin-right: 10px;
+    object-fit: contain;
+}

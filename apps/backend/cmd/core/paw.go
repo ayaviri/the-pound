@@ -9,24 +9,25 @@ import (
 )
 
 type PawRequestBody struct {
-	BarkId string `json:"bark_id"`
-	Paw    string `json:"paw"`
+	BarkId  string `json:"bark_id"`
+	Content string `json:"content"`
 }
 
 func Paw() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var dogId string
+		var dog xdb.Dog
 
-		timer.WithTimer("getting dog ID from Auth header JWT", func() {
-			dogId, err = xhttp.GetDogIdFromAuth(db, r)
+		timer.WithTimer("getting dog info from Auth header JWT", func() {
+			dog, err = xhttp.GetDogFromAuth(db, r)
 		})
 
 		if err != nil {
 			http.Error(
 				w,
-				"Could not get dog ID from Auth header JWT",
+				"Could not get dog information from Auth header JWT",
 				http.StatusInternalServerError,
 			)
+			return
 		}
 
 		var b PawRequestBody
@@ -41,18 +42,19 @@ func Paw() http.Handler {
 				"Could not get bark ID from request body",
 				http.StatusBadRequest,
 			)
+			return
 		}
 
 		timer.WithTimer("writing paw to database", func() {
 			err = xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
 				originalBarkId := b.BarkId
-				barkId, err := xdb.WriteBark(e, b.Paw, dogId)
+				barkId, err := xdb.WriteBark(e, b.Content, dog.Id, dog.Username)
 
 				if err != nil {
 					return err
 				}
 
-				err = xdb.WritePaw(e, originalBarkId, barkId, dogId)
+				err = xdb.WritePaw(e, originalBarkId, barkId, dog.Id)
 
 				if err != nil {
 					return err

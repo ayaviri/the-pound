@@ -2,11 +2,26 @@ package http
 
 import (
 	"database/sql"
+	"io"
 	"net/http"
 	xdb "the-pound/internal/db"
 
 	"github.com/ayaviri/goutils/timer"
+	"github.com/gorilla/handlers"
 )
+
+//  _     ___   ____  ____ ___ _   _  ____
+// | |   / _ \ / ___|/ ___|_ _| \ | |/ ___|
+// | |  | | | | |  _| |  _ | ||  \| | |  _
+// | |__| |_| | |_| | |_| || || |\  | |_| |
+// |_____\___/ \____|\____|___|_| \_|\____|
+//
+
+func NewLoggingHandler(destination io.Writer) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return handlers.LoggingHandler(destination, next)
+	}
+}
 
 //     _   _   _ _____ _   _
 //    / \ | | | |_   _| | | |
@@ -60,8 +75,8 @@ func (f BearerTokenAuthMiddlewareFactory) New(next http.Handler) http.Handler {
 			return
 		}
 
-		timer.WithTimer("updating bearer token", func() {
-			if result.NewToken != "" {
+		if result.NewToken != "" {
+			timer.WithTimer("updating bearer token", func() {
 				db, _ := f.DBExecutor.(*sql.DB)
 				err = xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
 					return xdb.UpdateSessionToken(e, bearerToken, result.NewToken)
@@ -74,8 +89,8 @@ func (f BearerTokenAuthMiddlewareFactory) New(next http.Handler) http.Handler {
 				newHeader := "Bearer " + result.NewToken
 				r.Header.Set("Authorization", newHeader)
 				w.Header().Set("Authorization", newHeader)
-			}
-		})
+			})
+		}
 
 		if err != nil {
 			http.Error(

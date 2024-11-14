@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
 	xdb "the-pound/internal/db"
 	xhttp "the-pound/internal/http"
@@ -12,6 +13,8 @@ type RebarkRequestBody struct {
 	BarkId string `json:"bark_id"`
 }
 
+// Adds a rebark if the dog hasn't given one to the bark.
+// Deletes the rebark otherwise
 func Rebark() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var dogId string
@@ -26,6 +29,7 @@ func Rebark() http.Handler {
 				"Could not get dog ID from Auth header JWT",
 				http.StatusInternalServerError,
 			)
+			return
 		}
 
 		var b RebarkRequestBody
@@ -40,115 +44,51 @@ func Rebark() http.Handler {
 				"Could not get bark ID from request body",
 				http.StatusBadRequest,
 			)
+			return
 		}
 
-		var rebarkGiven bool
-
-		timer.WithTimer("checking if rebark has already been given", func() {
+		timer.WithTimer("toggling rebark state for dog/bark pair in database", func() {
+			err = toggleRebarkStateInDB(db, b.BarkId, dogId)
 		})
+	})
+}
+
+// In an atomic transaction
+// 1) Checks whether a rebark exists for the given dog/bark pair
+// 2) Writes/removes rebark accordingly
+// 3) Increments/decrements bark's rebark count accordingly
+func toggleRebarkStateInDB(db *sql.DB, barkId string, dogId string) error {
+	return xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
+		rebarkGiven, err := xdb.HasDogGivenBarkRebark(e, barkId, dogId)
 
 		if err != nil {
-			http.Error(
-				w,
-				"Could not check if rebark has already been given by dog",
-				http.StatusInternalServerError,
-			)
-			return
+			return err
 		}
 
 		if rebarkGiven {
-			w.WriteHeader(200)
-			return
-		}
-
-		switch r.Method {
-		case http.MethodPost:
-			PostRebark(w, r, dogId, b.BarkId, rebarkGiven)
-		case http.MethodDelete:
-			DeleteRebark(w, r, dogId, b.BarkId, rebarkGiven)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return removeRebarkFromDB(e, barkId, dogId)
+		} else {
+			return writeRebarkToDB(e, barkId, dogId)
 		}
 	})
 }
 
-//  ____   ___  ____ _____
-// |  _ \ / _ \/ ___|_   _|
-// | |_) | | | \___ \ | |
-// |  __/| |_| |___) || |
-// |_|    \___/|____/ |_|
-//
-
-func PostRebark(
-	w http.ResponseWriter,
-	r *http.Request,
-	dogId string,
-	barkId string,
-	rebarkGiven bool,
-) {
-	if rebarkGiven {
-		w.WriteHeader(200)
-		return
-	}
-
-	timer.WithTimer("writing rebark to database", func() {
-		err = xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
-			err = xdb.WriteRebark(e, barkId, dogId)
-
-			if err != nil {
-				return err
-			}
-
-			return xdb.IncrementRebarkCount(e, barkId)
-		})
-	})
+func writeRebarkToDB(e xdb.DBExecutor, barkId string, dogId string) error {
+	err = xdb.WriteRebark(e, barkId, dogId)
 
 	if err != nil {
-		http.Error(
-			w,
-			"Could not write rebark to database",
-			http.StatusBadRequest,
-		)
+		return err
 	}
+
+	return xdb.IncrementRebarkCount(e, barkId)
 }
 
-//  ____  _____ _     _____ _____ _____
-// |  _ \| ____| |   | ____|_   _| ____|
-// | | | |  _| | |   |  _|   | | |  _|
-// | |_| | |___| |___| |___  | | | |___
-// |____/|_____|_____|_____| |_| |_____|
-//
-
-func DeleteRebark(
-	w http.ResponseWriter,
-	r *http.Request,
-	dogId string,
-	barkId string,
-	rebarkGiven bool,
-) {
-	if !rebarkGiven {
-		w.WriteHeader(200)
-		return
-	}
-
-	// TODO: Check if this dog can view that dog's barks ?
-	timer.WithTimer("removing rebark in database", func() {
-		err = xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
-			err = xdb.RemoveRebark(e, barkId, dogId)
-
-			if err != nil {
-				return err
-			}
-
-			return xdb.DecrementRebarkCount(e, barkId)
-		})
-	})
+func removeRebarkFromDB(e xdb.DBExecutor, barkId string, dogId string) error {
+	err = xdb.RemoveRebark(e, barkId, dogId)
 
 	if err != nil {
-		http.Error(
-			w,
-			"Could not remove rebark in database",
-			http.StatusBadRequest,
-		)
+		return err
 	}
+
+	return xdb.DecrementRebarkCount(e, barkId)
 }

@@ -12,28 +12,13 @@ import (
 
 func Bark() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var dogId string
-
-		timer.WithTimer("getting dog ID from Auth header JWT", func() {
-			dogId, err = xhttp.GetDogIdFromAuth(db, r)
-		})
-
-		if err != nil {
-			http.Error(
-				w,
-				"Could not extract dog ID from JWT",
-				http.StatusInternalServerError,
-			)
-			return
-		}
-
 		switch r.Method {
 		case http.MethodPost:
-			PostBark(w, r, dogId)
+			PostBark(w, r)
 		case http.MethodGet:
-			GetBark(w, r, dogId)
+			GetBark(w, r)
 		case http.MethodDelete:
-			DeleteBark(w, r, dogId)
+			DeleteBark(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -51,7 +36,22 @@ type PostBarkRequestBody struct {
 	Content string `json:"content"`
 }
 
-func PostBark(w http.ResponseWriter, r *http.Request, dogId string) {
+func PostBark(w http.ResponseWriter, r *http.Request) {
+	var dog xdb.Dog
+
+	timer.WithTimer("getting dog info from Auth header JWT", func() {
+		dog, err = xhttp.GetDogFromAuth(db, r)
+	})
+
+	if err != nil {
+		http.Error(
+			w,
+			"Could not extract dog information from JWT",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
 	var b PostBarkRequestBody
 
 	timer.WithTimer("unmarshalling body of request", func() {
@@ -69,7 +69,7 @@ func PostBark(w http.ResponseWriter, r *http.Request, dogId string) {
 
 	timer.WithTimer("writing bark to the database", func() {
 		err = xdb.ExecuteInTransaction(db, func(e xdb.DBExecutor) error {
-			_, err = xdb.WriteBark(e, b.Content, dogId)
+			_, err = xdb.WriteBark(e, b.Content, dog.Id, dog.Username)
 			return err
 		})
 	})
@@ -96,11 +96,10 @@ type BarkQueryStringParameters struct {
 }
 
 type GetBarkResponseBody struct {
-	Bark xdb.Bark
-	// TODO: Consider throwing the counts of the various interactions with this bark
+	Bark xdb.Bark `json:"bark"`
 }
 
-func GetBark(w http.ResponseWriter, r *http.Request, dogId string) {
+func GetBark(w http.ResponseWriter, r *http.Request) {
 	var p BarkQueryStringParameters
 
 	timer.WithTimer("getting bark ID from query string", func() {
@@ -157,7 +156,7 @@ func GetBark(w http.ResponseWriter, r *http.Request, dogId string) {
 // |____/|_____|_____|_____| |_| |_____|
 //
 
-func DeleteBark(w http.ResponseWriter, r *http.Request, dogId string) {
+func DeleteBark(w http.ResponseWriter, r *http.Request) {
 	var p BarkQueryStringParameters
 
 	timer.WithTimer("getting bark ID from query string", func() {

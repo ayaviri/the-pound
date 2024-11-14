@@ -8,9 +8,9 @@ import (
 )
 
 type Dog struct {
-	Id       string
-	Username string
-	IsPublic bool
+	Id       string `json:"id"`
+	Username string `json:"username"`
+	IsPublic bool   `json:"is_public"`
 }
 
 func IsUsernameInUse(e DBExecutor, username string) (bool, error) {
@@ -80,4 +80,37 @@ func GetDogFromId(e DBExecutor, dogId string) (Dog, error) {
 	err = row.Scan(&d.Id, &d.Username, &d.IsPublic)
 
 	return d, err
+}
+
+func GetDogByUsername(e DBExecutor, username string) (Dog, error) {
+	query := `select id, username, is_public from dog where username = $1`
+	var row *sql.Row = e.QueryRow(query, username)
+	var d Dog
+	err = row.Scan(&d.Id, &d.Username, &d.IsPublic)
+
+	return d, err
+}
+
+func IncrementFollowingCount(e DBExecutor, dogId string) error {
+	statement := `update dog set following_count = following_count + 1 where id = $1`
+	_, err = e.Exec(statement, dogId)
+	return nil
+}
+
+func IncrementFollowerCount(e DBExecutor, dogId string) error {
+	statement := `update dog set follower_count = follower_count + 1 where id = $1`
+	_, err = e.Exec(statement, dogId)
+	return nil
+}
+
+func DecrementFollowingCount(e DBExecutor, dogId string) error {
+	statement := `update dog set following_count = following_count - 1 where id = $1`
+	_, err = e.Exec(statement, dogId)
+	return nil
+}
+
+func DecrementFollowerCount(e DBExecutor, dogId string) error {
+	statement := `update dog set follower_count = follower_count - 1 where id = $1`
+	_, err = e.Exec(statement, dogId)
+	return nil
 }
