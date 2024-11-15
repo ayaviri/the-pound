@@ -18,6 +18,10 @@ create index if not exists notification_to_dog_id_is_read on notification(to_dog
 --   |_| |_| \_\_____/_/   \_\_|     |_| |_| \_\___\____|\____|_____|_| \_\
 --                                                                         
 
+-- 1) Gets the information on the affected bark
+-- 2) Joins it with the dog table to get the affected bark's author info
+-- 3) Filters out bark if affected by author themself
+-- 4) Writes notification
 create or replace function write_bark_related_notification()
 returns trigger as $$
 declare
@@ -25,12 +29,22 @@ declare
 begin
     notification_type := TG_ARGV[0];
 
+    -- 4)
     insert into notification (
         id, 
         is_read, 
         to_dog_id, 
         type, 
         payload
+    )
+    -- 1)
+    with affected_bark as (
+        select
+            id,
+            bark,
+            dog_id
+        from bark
+        where bark.id = NEW.bark_id
     )
     select 
         gen_random_uuid()::text,
@@ -43,8 +57,10 @@ begin
             'bark_id', b.id,
             'bark', b.bark
         )::text
-    from bark b join dog d on d.id = NEW.dog_id
-    where b.id = NEW.bark_id and b.dog_id != NEW.dog_id;
+    -- 2)
+    from affected_bark join dog d on affected_bark.dog_id = d.id
+    -- 3)
+    where affected_bark.dog_id != NEW.dog_id;
 
     return NEW;
 end;
@@ -78,11 +94,64 @@ for each row
 -- |_| /_/   \_\_/\_/      |_| |_| \_\___\____|\____|_____|_| \_\
 --                                                               
 
+-- 1) Gets the ID of the dog who authored the parent bark of the
+-- newly inserted paw
+-- 2) Gets the bark information of the newly inserted paw
+-- 3) Joins it with the dog table to get the paw's author info
+-- 4) Filters out the paw if the author has replied to themself
+-- 5) Writes notification
+create or replace function write_paw_notification()
+returns trigger as $$
+declare
+    to_dog_id text;
+begin
+    -- 1)
+    select d.id into to_dog_id 
+    from dog d join bark b on d.id = b.dog_id
+    where b.id = NEW.original_bark_id;
+
+    -- 5)
+    insert into notification (
+        id,
+        is_read,
+        to_dog_id,
+        type,
+        payload
+    )
+    -- 2)
+    with paw_bark as (
+        select 
+            id, 
+            bark, 
+            dog_id
+        from bark 
+        where bark.id = NEW.bark_id
+    )
+    select
+        gen_random_uuid()::text,
+        false,
+        to_dog_id,
+        'paw',
+        json_build_object(
+            'from_dog_id', NEW.dog_id,
+            'from_dog_username', d.username,
+            'bark_id', paw_bark.id,
+            'bark', paw_bark.bark
+        )::text
+    -- 3)
+    from paw_bark join dog d on paw_bark.dog_id = d.id
+    -- 4)
+    where to_dog_id != d.id;
+
+    return NEW;
+end;
+$$ language plpgsql;
+
 drop trigger if exists write_paw_notification_trigger on paw;
 create trigger write_paw_notification_trigger
 after insert on paw 
 for each row
-    execute function write_bark_related_notification('paw');
+    execute function write_paw_notification();
 
 
 --  _____ ___  _     _     _____        __

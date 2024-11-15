@@ -102,6 +102,7 @@ function createRebarkNotification(notification) {
 function createPawNotification(notification) {
     const message = `@${notification.payload.from_dog_username} pawed: ${notification.payload.bark}`
     const onClickHandler = async function() {
+        await api.readNotification(notification.id)
         redirect.toBark(notification.payload.bark_id)
     }
     return createNotificationHelper("paw.jpg", message, onClickHandler)

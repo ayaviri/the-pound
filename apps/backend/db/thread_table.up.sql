@@ -9,17 +9,20 @@ create table if not exists thread (
 );
 create index if not exists thread_thread_path on thread using GIST (thread_path);
 
+-- 1) Gets the thread path of the newly inserted paw's parent bark
+-- 2) Creates a thread for the parent if it did not exist
+-- 3) Creates a thread for the newly inserted paw
 create or replace function update_thread_path()
 returns trigger as $$
 declare
     parent_thread ltree;
     root_bark_id text;
 begin
-    -- 1) Get parent path
+    -- 1)
     select t.thread_path, t.root_bark_id into parent_thread, root_bark_id
     from thread t where t.bark_id = NEW.original_bark_id;
 
-    -- 2) Create thread for parent if not exists
+    -- 2)
     if parent_thread is null then
         parent_thread = NEW.original_bark_id::text::ltree;
         root_bark_id = NEW.original_bark_id;
@@ -32,7 +35,7 @@ begin
         );
     end if;
 
-    -- 3) Create thread for paw
+    -- 3)
     insert into thread (bark_id, thread_path, root_bark_id)
     values (
         NEW.bark_id,
